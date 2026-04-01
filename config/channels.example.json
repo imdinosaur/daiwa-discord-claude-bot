@@ -1,0 +1,10 @@
+{
+  "_comment": "broadcast：啟動通知與特定廣播用。channels：平常主動發送一般訊息用。",
+  "broadcast": {
+    "頻道名稱": "頻道ID"
+  },
+  "channels": {
+    "default": "預設頻道ID",
+    "頻道名稱": "頻道ID"
+  }
+}

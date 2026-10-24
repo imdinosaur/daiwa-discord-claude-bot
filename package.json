@@ -6,6 +6,7 @@
   "scripts": {
     "setup": "powershell -ExecutionPolicy Bypass -File setup.ps1",
     "start": "claude --channels plugin:discord@claude-plugins-official",
-    "start:daiwa": "powershell -ExecutionPolicy Bypass -File start.ps1 -BotName daiwa-scarlet"
+    "start:daiwa": "powershell -ExecutionPolicy Bypass -File start.ps1 -BotName daiwa-scarlet",
+    "start:daiwa:resume": "powershell -ExecutionPolicy Bypass -File start.ps1 -BotName daiwa-scarlet -Resume"
   }
 }

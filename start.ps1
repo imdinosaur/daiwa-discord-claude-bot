@@ -1,6 +1,9 @@
 param(
     [Parameter(Mandatory=$true)]
-    [string]$BotName
+    [string]$BotName,
+
+    # Open Claude Code's session picker to continue a previous session
+    [switch]$Resume
 )
 
 $botDir = Join-Path $PSScriptRoot "bots/$BotName"
@@ -50,9 +53,9 @@ try {
     $botUserId = $meResponse.id
 } catch {}
 
-# Send startup notification via webhook (channel)
+# Send startup notification via webhook (channel); skipped when resuming
 $startupMsgFile = Join-Path $botDir "startup_message.txt"
-if (Test-Path $startupMsgFile) {
+if ((Test-Path $startupMsgFile) -and -not $Resume) {
     $startupText = (Get-Content $startupMsgFile -Raw -Encoding UTF8).Trim()
 
     # Channel notification via Webhook
@@ -103,5 +106,12 @@ if (Test-Path $sharedSkillsDir) {
     }
 }
 
-Write-Host "[$BotName] Starting..."
-claude --channels plugin:discord@claude-plugins-official --system-prompt $systemPrompt
+$claudeArgs = @("--channels", "plugin:discord@claude-plugins-official", "--system-prompt", $systemPrompt)
+if ($Resume) {
+    # --resume without a session ID opens the interactive session picker
+    $claudeArgs += "--resume"
+    Write-Host "[$BotName] Starting (resume)..."
+} else {
+    Write-Host "[$BotName] Starting..."
+}
+claude @claudeArgs

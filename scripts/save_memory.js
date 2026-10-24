@@ -4,9 +4,11 @@
  * 用法：node scripts/save_memory.js --user <username> --note "<摘要>"
  */
 
-const fs = require("fs");
-const path = require("path");
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const MEMORY_FILE = path.join(__dirname, "../memory/user_interactions.md");
 
 function parseArgs() {

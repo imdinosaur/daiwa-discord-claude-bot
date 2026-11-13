@@ -5,3 +5,4 @@ node_modules/
 memory/user_interactions.md
 memory/mood.json
 config/channels.json
+.playwright-mcp/

@@ -90,6 +90,12 @@ if ((Test-Path $startupMsgFile) -and -not $Resume) {
 # Build system prompt: character + all skills
 $systemPrompt = Get-Content (Join-Path $botDir "character.md") -Raw -Encoding UTF8
 
+# Optional voice-line corpus, kept separate so character.md stays readable
+$voiceLinesFile = Join-Path $botDir "voice_lines.md"
+if (Test-Path $voiceLinesFile) {
+    $systemPrompt += "`n`n---`n`n" + (Get-Content $voiceLinesFile -Raw -Encoding UTF8)
+}
+
 $skillsDir = Join-Path $botDir "skills"
 if (Test-Path $skillsDir) {
     Get-ChildItem $skillsDir -Filter "*.md" | ForEach-Object {
@@ -104,6 +110,12 @@ if (Test-Path $sharedSkillsDir) {
         $skill = Get-Content $_.FullName -Raw -Encoding UTF8
         $systemPrompt += "`n`n---`n`n" + $skill
     }
+}
+
+# The prompt is passed on the command line; Windows caps a command line at 32767 chars
+$PROMPT_WARN_LENGTH = 28000
+if ($systemPrompt.Length -gt $PROMPT_WARN_LENGTH) {
+    Write-Warning "[$BotName] System prompt is $($systemPrompt.Length) chars; Windows command-line limit is 32767. Trim character.md / voice_lines.md / skills."
 }
 
 $claudeArgs = @("--channels", "plugin:discord@claude-plugins-official", "--system-prompt", $systemPrompt)

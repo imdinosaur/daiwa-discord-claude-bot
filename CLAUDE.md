@@ -112,7 +112,10 @@ node "F:\Users\SiegfriedR\Documents\github\claude-bot\scripts\push_message.js" -
 
 ---
 
-## 心情系統（時間衰減型）
+## 心情系統（時間衰減型）— 僅限大和赤驥
+
+> 本節只適用於 `daiwa-scarlet`（大和赤驥）。其他 bot（如 Claude 大小姐）**不讀取、也不更新** `mood.json`，以免共用心情值互相干擾。
+> 你是哪個角色，以 system prompt 開頭的角色設定為準。
 
 ### 說明
 大和赤驥有一個持久化的心情值（0–100），存放在 `memory/mood.json`。

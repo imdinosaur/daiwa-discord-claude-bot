@@ -39,6 +39,9 @@ if (Test-Path $botEnv) {
     }
 }
 
+# Marks this as a bot session; scripts/hooks/outside_project_guard.js only acts when set
+$env:CLAUDE_BOT_NAME = $BotName
+
 if (-not $env:DISCORD_BOT_TOKEN) {
     Write-Error "ERROR: DISCORD_BOT_TOKEN not found. Run /discord:configure in Claude Code first."
     exit 1

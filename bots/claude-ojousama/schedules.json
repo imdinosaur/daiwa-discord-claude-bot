@@ -1,0 +1,17 @@
+{
+  "_comment": "啟動時由 start.ps1 注入，bot 依「排程任務」skill 用 CronCreate 建立。cron 為本機時間（台北），5 欄位：分 時 日 月 星期。enabled=false 可暫停。修改後在 Discord 對 bot 說「重新載入排程」或重啟即生效。",
+  "jobs": [
+    {
+      "id": "gamma-preopen",
+      "cron": "17 8 * * 1-5",
+      "enabled": true,
+      "task": "開盤前 gamma 整理：依「Gamma 報告」skill 的盤前模式，整理最近一個交易日的台指選擇權 gamma 快照，發到「一般」頻道（chat_id 1484811045179752511）。"
+    },
+    {
+      "id": "gamma-postclose",
+      "cron": "23 15 * * 1-5",
+      "enabled": true,
+      "task": "盤後 gamma 報告：依「Gamma 報告」skill 的盤後模式，整理今天收盤後的台指選擇權 gamma 快照，發到「一般」頻道（chat_id 1484811045179752511）。"
+    }
+  ]
+}

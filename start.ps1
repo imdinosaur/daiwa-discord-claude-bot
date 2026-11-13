@@ -122,11 +122,24 @@ if ($systemPrompt.Length -gt $PROMPT_WARN_LENGTH) {
 }
 
 $claudeArgs = @("--channels", "plugin:discord@claude-plugins-official", "--system-prompt", $systemPrompt)
+
+# Scheduled jobs (CronCreate) live only in the session, so they are rebuilt from schedules.json on every start
+$schedulesFile = Join-Path $botDir "schedules.json"
+$hasSchedules = Test-Path $schedulesFile
+
 if ($Resume) {
-    # --resume without a session ID opens the interactive session picker
+    # --resume without a session ID opens the interactive session picker.
+    # A positional prompt here could be taken as the session ID, so schedules are not injected on resume.
     $claudeArgs += "--resume"
+    if ($hasSchedules) {
+        Write-Warning "[$BotName] Schedules are not rebuilt on resume. Tell the bot in Discord: reload schedules"
+    }
     Write-Host "[$BotName] Starting (resume)..."
 } else {
+    if ($hasSchedules) {
+        $relSchedules = "bots/$BotName/schedules.json"
+        $claudeArgs += "[startup] Load schedules: follow shared/skills/schedules.md and read $relSchedules."
+    }
     Write-Host "[$BotName] Starting..."
 }
 claude @claudeArgs

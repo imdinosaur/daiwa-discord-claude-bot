@@ -4,7 +4,8 @@
   "license": "Apache-2.0",
   "type": "module",
   "scripts": {
-    "test": "node --test scripts/",
+    "test": "node --test scripts/ tests/",
+    "gamma-today": "node scripts/gamma_today.ts",
     "setup": "powershell -ExecutionPolicy Bypass -File setup.ps1",
     "start": "claude --channels plugin:discord@claude-plugins-official",
     "start:daiwa": "powershell -ExecutionPolicy Bypass -File start.ps1 -BotName daiwa-scarlet",

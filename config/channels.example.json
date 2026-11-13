@@ -1,7 +1,10 @@
 {
-  "_comment": "broadcast：啟動通知與特定廣播用。channels：平常主動發送一般訊息用。",
+  "_comment": "broadcast：啟動通知與特定廣播用（伺服器頻道 ID）。broadcastDm：廣播時另外私訊的使用者（存 user ID，不要存 DM 頻道 ID，DM 頻道只屬於單一 bot）。channels：平常主動發送一般訊息用。",
   "broadcast": {
     "頻道名稱": "頻道ID"
+  },
+  "broadcastDm": {
+    "使用者名稱": "使用者ID"
   },
   "channels": {
     "default": "預設頻道ID",

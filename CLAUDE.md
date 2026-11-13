@@ -92,7 +92,7 @@ node "F:\Users\SiegfriedR\Documents\github\claude-bot\scripts\push_message.js" -
 # 透過 Bot Token 發送到指定頻道
 node "F:\Users\SiegfriedR\Documents\github\claude-bot\scripts\push_message.js" --channel "訊息內容" --channel-id "頻道ID"
 
-# 廣播到 config/channels.json 中所有頻道
+# 廣播到 config/channels.json 的 broadcast 頻道，並私訊 broadcastDm 中的使用者
 node "F:\Users\SiegfriedR\Documents\github\claude-bot\scripts\push_message.js" --channel "訊息內容" --broadcast
 
 # 透過 Bot Token 發送 DM 給管理員

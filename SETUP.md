@@ -75,6 +75,9 @@ cp config/channels.example.json config/channels.json
   "broadcast": {
     "頻道名稱": "頻道ID"
   },
+  "broadcastDm": {
+    "使用者名稱": "使用者ID"
+  },
   "channels": {
     "default": "預設頻道ID",
     "頻道名稱": "頻道ID"
@@ -85,9 +88,10 @@ cp config/channels.example.json config/channels.json
 | 區塊 | 用途 |
 |------|------|
 | `broadcast` | `--broadcast` 廣播時發送的目標頻道（例如啟動通知） |
+| `broadcastDm` | `--broadcast` 廣播時另外私訊的使用者。**填 user ID，不要填 DM 頻道 ID**：DM 頻道只屬於單一 bot，換成其他 bot 發送會得到 403 Missing Access |
 | `channels` | 一般主動推播時的目標頻道，`default` 為未指定時的備援 |
 
-頻道 ID 取得方式：Discord 開發者模式開啟後，對頻道右鍵 → 複製頻道 ID。
+頻道 ID 取得方式：Discord 開發者模式開啟後，對頻道右鍵 → 複製頻道 ID；使用者 ID 則是對使用者右鍵 → 複製使用者 ID。
 
 > `config/channels.json` 已列入 `.gitignore`，不會被提交到 git。
 

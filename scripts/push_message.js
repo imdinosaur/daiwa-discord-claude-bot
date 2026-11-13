@@ -168,16 +168,21 @@ if (!channelMsg && !dmMsg) {
 try {
   if (channelMsg) {
     if (broadcast) {
-      // 廣播到 broadcast 群組的所有頻道
-      const broadcastChannels = loadChannels("broadcast");
-      const entries = Object.entries(broadcastChannels);
-      if (entries.length === 0) {
-        console.error("❌ channels.json 的 broadcast 群組中沒有任何頻道");
+      // 廣播到 broadcast 群組的所有頻道，再私訊 broadcastDm 群組的所有使用者
+      // broadcastDm 存的是 user ID：DM 頻道只屬於單一 bot，由各 bot 自行開啟
+      const channelEntries = Object.entries(loadChannels("broadcast"));
+      const dmEntries = Object.entries(loadChannels("broadcastDm"));
+      if (channelEntries.length === 0 && dmEntries.length === 0) {
+        console.error("❌ channels.json 的 broadcast 與 broadcastDm 群組中沒有任何目標");
         process.exit(1);
       }
-      for (const [name, id] of entries) {
+      const targets = [
+        ...channelEntries.map(([name, id]) => ({ name, id, send: () => sendToChannel(channelMsg, id) })),
+        ...dmEntries.map(([name, id]) => ({ name: `DM:${name}`, id, send: () => sendDM(channelMsg, id) })),
+      ];
+      for (const { name, id, send } of targets) {
         try {
-          await sendToChannel(channelMsg, id);
+          await send();
           console.log(`✅ 已發送到 ${name} (${id})`);
         } catch (err) {
           console.error(`❌ 發送到 ${name} (${id}) 失敗：${err.message}`);

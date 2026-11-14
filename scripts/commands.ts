@@ -36,11 +36,19 @@ function loadEnabledCommands(botName: string): string[] {
 
 async function registerCommands(token: string, applicationId: string, names: readonly string[]): Promise<void> {
   const guildId = process.env.DISCORD_GUILD_ID;
+  const rest = new REST().setToken(token);
   const route = guildId
     ? Routes.applicationGuildCommands(applicationId, guildId)
     : Routes.applicationCommands(applicationId);
-  await new REST().setToken(token).put(route, { body: toRegistrationBody(names) });
+  await rest.put(route, { body: toRegistrationBody(names) });
   console.info(`registered ${guildId ? `guild ${guildId}` : "global"} commands: ${names.join(", ")}`);
+
+  // 改用伺服器指令後，舊的全域指令會讓清單裡每個指令出現兩次，所以一併清掉。
+  // 這個 App 的全域指令只有這支程式在管（插件不註冊指令），清空不會誤刪別人的。
+  if (guildId) {
+    await rest.put(Routes.applicationCommands(applicationId), { body: [] });
+    console.info("cleared global commands (guild mode)");
+  }
 }
 
 function voiceContext(interaction: ChatInputCommandInteraction): GuildVoiceContext | null {

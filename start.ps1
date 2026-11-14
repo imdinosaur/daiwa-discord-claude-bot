@@ -9,7 +9,10 @@ param(
     [switch]$Schedules,
 
     # Skip the slash command process (scripts/commands.ts)
-    [switch]$NoCommands
+    [switch]$NoCommands,
+
+    # Send the startup message even if it was already sent today
+    [switch]$ForceAnnounce
 )
 
 $botDir = Join-Path $PSScriptRoot "bots/$BotName"
@@ -69,10 +72,19 @@ try {
     $botUserId = $meResponse.id
 } catch {}
 
-# Send startup notification via webhook (channel); skipped when resuming
+# Startup notification: skipped when resuming, and sent at most once per Taipei calendar day per bot
 $startupMsgFile = Join-Path $botDir "startup_message.txt"
-if ((Test-Path $startupMsgFile) -and -not $Resume) {
+$announceMarker = Join-Path $PSScriptRoot "memory/last_startup_$BotName.txt"
+$today = [DateTimeOffset]::UtcNow.ToOffset([TimeSpan]::FromHours(8)).ToString("yyyy-MM-dd")
+$lastAnnounced = if (Test-Path $announceMarker) { (Get-Content $announceMarker -Raw).Trim() } else { "" }
+$alreadyAnnounced = ($lastAnnounced -eq $today) -and -not $ForceAnnounce
+if ($alreadyAnnounced -and -not $Resume) {
+    Write-Host "[$BotName] Startup message already sent today ($today); skipping. Use -ForceAnnounce to send again."
+}
+
+if ((Test-Path $startupMsgFile) -and -not $Resume -and -not $alreadyAnnounced) {
     $startupText = (Get-Content $startupMsgFile -Raw -Encoding UTF8).Trim()
+    $announced = $false
 
     # Channel notification via Webhook
     if ($env:DISCORD_WEBHOOK_URL) {
@@ -87,6 +99,7 @@ if ((Test-Path $startupMsgFile) -and -not $Resume) {
                 -Body $bodyBytes `
                 -ContentType "application/json; charset=utf-8" | Out-Null
             Write-Host "[$BotName] Startup message sent to channel."
+            $announced = $true
         } catch {
             Write-Warning "Failed to send startup message to channel: $_"
         }
@@ -96,10 +109,20 @@ if ((Test-Path $startupMsgFile) -and -not $Resume) {
     if ($env:DISCORD_BOT_TOKEN) {
         try {
             node (Join-Path $PSScriptRoot "scripts/push_message.js") --channel $startupText --broadcast
-            Write-Host "[$BotName] Startup broadcast done."
+            if ($LASTEXITCODE -eq 0) {
+                Write-Host "[$BotName] Startup broadcast done."
+                $announced = $true
+            } else {
+                Write-Warning "Startup broadcast exited with code $LASTEXITCODE"
+            }
         } catch {
             Write-Warning "Failed to send startup message to 一般: $_"
         }
+    }
+
+    # Only mark the day once something actually went out, so a failed send is retried on the next start
+    if ($announced) {
+        Set-Content -Path $announceMarker -Value $today -Encoding ASCII
     }
 }
 

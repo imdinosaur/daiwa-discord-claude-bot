@@ -106,8 +106,13 @@ npm start
 或指定 Bot 角色啟動（Windows）：
 
 ```powershell
-npm run start:daiwa
+npm run start:daiwa            # 大和赤驥
+npm run start:claude           # Claude 大小姐（一般啟動）
+npm run start:claude:stocks    # Claude 大小姐 + 股票定期回報（依 bots/claude-ojousama/schedules.json 建立排程）
+npm run start:claude:resume    # 接續之前的 session（不會自動建立排程，需在 Discord 說「重新載入排程」）
 ```
+
+> 定期回報的排程需要 `.claude/settings.local.json` 預先允許 `node scripts/gamma_today.ts` 與 `CronCreate` / `CronDelete` / `CronList`，否則每次觸發都會私訊管理員要許可。
 
 ---
 
@@ -121,3 +126,18 @@ config/channels.example.json      ← 範本（已納入 git，供參考）
 ```
 
 > `.env` 與 `config/channels.json` 已列入 `.gitignore`，不會被提交到 git。
+
+---
+
+## Slash 指令（選用）
+
+`start.ps1` 啟動時，如果 `bots/<bot>/commands.json` 存在，會在背景一起啟動 `scripts/commands.ts`。日誌寫在 `logs/commands-<bot>.log`，加上 `-NoCommands` 就不會啟動。
+
+| 指令 | 誰能用 | 說明 |
+|------|--------|------|
+| `/gamma [date]` | 所有人 | 台指 gamma 快照，先 defer 再回覆 |
+| `/remember note` | 所有人 | 把一件事寫進「自己的」互動記憶，只有自己看得到回覆 |
+| `/mood` | 管理員 | 查看心情值，只有自己看得到；其他人會收到只有自己看得到的拒絕訊息 |
+
+- `.env` 可以加上 `DISCORD_GUILD_ID=<伺服器 ID>`，讓指令註冊到該伺服器、馬上生效。沒有設定的話會註冊成全域指令。
+- **不要**在 Developer Portal 設定 Interactions Endpoint URL，不然插件的 Allow / Deny 按鈕會失效。

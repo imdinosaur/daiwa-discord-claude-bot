@@ -11,6 +11,10 @@
     "start:daiwa": "powershell -ExecutionPolicy Bypass -File start.ps1 -BotName daiwa-scarlet",
     "start:daiwa:resume": "powershell -ExecutionPolicy Bypass -File start.ps1 -BotName daiwa-scarlet -Resume",
     "start:claude": "powershell -ExecutionPolicy Bypass -File start.ps1 -BotName claude-ojousama",
+    "start:claude:stocks": "powershell -ExecutionPolicy Bypass -File start.ps1 -BotName claude-ojousama -Schedules",
     "start:claude:resume": "powershell -ExecutionPolicy Bypass -File start.ps1 -BotName claude-ojousama -Resume"
+  },
+  "dependencies": {
+    "discord.js": "^14.28.1"
   }
 }

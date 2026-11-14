@@ -3,12 +3,25 @@ param(
     [string]$BotName,
 
     # Open Claude Code's session picker to continue a previous session
-    [switch]$Resume
+    [switch]$Resume,
+
+    # Build the scheduled jobs in bots/<BotName>/schedules.json (e.g. stock/gamma reports) at startup
+    [switch]$Schedules,
+
+    # Skip the slash command process (scripts/commands.ts)
+    [switch]$NoCommands
 )
 
 $botDir = Join-Path $PSScriptRoot "bots/$BotName"
 if (-not (Test-Path $botDir)) {
     Write-Error "Bot '$BotName' not found. Expected folder: $botDir"
+    exit 1
+}
+
+# Checked before any startup notification so a bad flag fails quietly
+$schedulesFile = Join-Path $botDir "schedules.json"
+if ($Schedules -and -not (Test-Path $schedulesFile)) {
+    Write-Error "[$BotName] -Schedules was given but $schedulesFile does not exist."
     exit 1
 }
 
@@ -123,23 +136,48 @@ if ($systemPrompt.Length -gt $PROMPT_WARN_LENGTH) {
 
 $claudeArgs = @("--channels", "plugin:discord@claude-plugins-official", "--system-prompt", $systemPrompt)
 
-# Scheduled jobs (CronCreate) live only in the session, so they are rebuilt from schedules.json on every start
-$schedulesFile = Join-Path $botDir "schedules.json"
-$hasSchedules = Test-Path $schedulesFile
-
+# Scheduled jobs (CronCreate) live only in the session, so -Schedules rebuilds them from schedules.json on each start
 if ($Resume) {
     # --resume without a session ID opens the interactive session picker.
     # A positional prompt here could be taken as the session ID, so schedules are not injected on resume.
     $claudeArgs += "--resume"
-    if ($hasSchedules) {
+    if ($Schedules) {
         Write-Warning "[$BotName] Schedules are not rebuilt on resume. Tell the bot in Discord: reload schedules"
     }
     Write-Host "[$BotName] Starting (resume)..."
+} elseif ($Schedules) {
+    $relSchedules = "bots/$BotName/schedules.json"
+    $claudeArgs += "[startup] Load schedules: follow shared/skills/schedules.md and read $relSchedules."
+    Write-Host "[$BotName] Starting with schedules ($relSchedules)..."
 } else {
-    if ($hasSchedules) {
-        $relSchedules = "bots/$BotName/schedules.json"
-        $claudeArgs += "[startup] Load schedules: follow shared/skills/schedules.md and read $relSchedules."
-    }
     Write-Host "[$BotName] Starting..."
 }
-claude @claudeArgs
+
+# Slash commands run in their own process beside Claude; output goes to logs/ so it stays out of the Claude UI
+$commandsProc = $null
+$commandsFile = Join-Path $botDir "commands.json"
+if ((Test-Path $commandsFile) -and -not $NoCommands) {
+    $logDir = Join-Path $PSScriptRoot "logs"
+    New-Item -ItemType Directory -Force $logDir | Out-Null
+    $commandsProc = Start-Process node `
+        -ArgumentList "`"$(Join-Path $PSScriptRoot 'scripts/commands.ts')`"" `
+        -NoNewWindow -PassThru `
+        -RedirectStandardOutput (Join-Path $logDir "commands-$BotName.log") `
+        -RedirectStandardError (Join-Path $logDir "commands-$BotName.err.log")
+    # Config or login errors make it exit right away; say so instead of failing silently
+    Start-Sleep -Seconds 3
+    if ($commandsProc.HasExited) {
+        Write-Warning "[$BotName] Slash command process exited. See logs/commands-$BotName.err.log"
+        $commandsProc = $null
+    } else {
+        Write-Host "[$BotName] Slash commands started (logs/commands-$BotName.log)."
+    }
+}
+
+try {
+    claude @claudeArgs
+} finally {
+    if ($commandsProc -and -not $commandsProc.HasExited) {
+        Stop-Process -Id $commandsProc.Id -Force -ErrorAction SilentlyContinue
+    }
+}

@@ -12,10 +12,13 @@
 import fs from "node:fs";
 import path from "node:path";
 import { Client, Events, GatewayIntentBits, MessageFlags, REST, Routes } from "discord.js";
-import type { ChatInputCommandInteraction } from "discord.js";
+import type { ChatInputCommandInteraction, Client as DiscordClient, VoiceState } from "discord.js";
+import { getVoiceConnection } from "@discordjs/voice";
 import { runDeferred } from "../lib/commands/defer.ts";
 import { findCommand, parseEnabledCommands, toRegistrationBody } from "../lib/commands/registry.ts";
 import { PROJECT_ROOT } from "../lib/commands/run_script.ts";
+import { AutoLeaveScheduler } from "../lib/commands/voice.ts";
+import type { GuildVoiceContext } from "../lib/commands/voice.ts";
 
 const ADMIN_ONLY_REPLY = "這個指令只有管理員能用。";
 
@@ -40,6 +43,35 @@ async function registerCommands(token: string, applicationId: string, names: rea
   console.info(`registered ${guildId ? `guild ${guildId}` : "global"} commands: ${names.join(", ")}`);
 }
 
+function voiceContext(interaction: ChatInputCommandInteraction): GuildVoiceContext | null {
+  if (!interaction.inCachedGuild()) return null;
+  const channel = interaction.member.voice.channel;
+  return {
+    guildId: interaction.guildId,
+    adapterCreator: interaction.guild.voiceAdapterCreator,
+    userChannel: channel && { id: channel.id, name: channel.name, joinable: channel.joinable },
+  };
+}
+
+/** bot 所在的語音頻道裡還有幾個真人；不在語音頻道時回傳 null */
+function humansWithBot(client: DiscordClient, guildId: string): number | null {
+  const connection = getVoiceConnection(guildId);
+  const channelId = connection?.joinConfig.channelId;
+  if (!channelId) return null;
+  const channel = client.guilds.cache.get(guildId)?.channels.cache.get(channelId);
+  if (!channel?.isVoiceBased()) return null;
+  return channel.members.filter((m) => !m.user.bot).size;
+}
+
+function onVoiceStateUpdate(client: DiscordClient, autoLeave: AutoLeaveScheduler, state: VoiceState): void {
+  const humans = humansWithBot(client, state.guild.id);
+  if (humans === null) {
+    autoLeave.cancel(state.guild.id);
+    return;
+  }
+  autoLeave.update(state.guild.id, humans);
+}
+
 async function handleCommand(
   interaction: ChatInputCommandInteraction,
   enabled: ReadonlySet<string>,
@@ -58,7 +90,12 @@ async function handleCommand(
       deferReply: (options) => interaction.deferReply(options),
       editReply: (content) => interaction.editReply(content),
     },
-    () => spec.run({ username: interaction.user.username, getString: (n) => interaction.options.getString(n) }),
+    () =>
+      spec.run({
+        username: interaction.user.username,
+        getString: (n) => interaction.options.getString(n),
+        voice: voiceContext(interaction),
+      }),
     { ephemeral: spec.ephemeral },
   );
 }
@@ -70,8 +107,14 @@ async function main(): Promise<void> {
   const names = loadEnabledCommands(botName);
   const enabled = new Set(names);
 
-  // Interaction 不受 intent 限制，Guilds 是登入所需的最小 intent
-  const client = new Client({ intents: [GatewayIntentBits.Guilds] });
+  // Interaction 不受 intent 限制；GuildVoiceStates 用來知道誰在哪個語音頻道（非特權 intent）
+  const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildVoiceStates] });
+  const autoLeave = new AutoLeaveScheduler((guildId) => getVoiceConnection(guildId)?.destroy());
+
+  client.on(Events.VoiceStateUpdate, (oldState, newState) => {
+    // 有人離開或加入都可能改變 bot 所在頻道的人數
+    onVoiceStateUpdate(client, autoLeave, newState.channelId ? newState : oldState);
+  });
 
   client.once(Events.ClientReady, async (ready) => {
     console.info(`[${botName}] commands online as ${ready.user.tag}`);

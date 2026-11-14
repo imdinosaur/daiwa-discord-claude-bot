@@ -137,7 +137,10 @@ config/channels.example.json      ← 範本（已納入 git，供參考）
 |------|--------|------|
 | `/gamma [date]` | 所有人 | 台指 gamma 快照，先 defer 再回覆 |
 | `/remember note` | 所有人 | 把一件事寫進「自己的」互動記憶，只有自己看得到回覆 |
+| `/join` / `/leave` | 所有人 | 加入你目前所在的語音頻道或離開；頻道裡沒有真人 1 分鐘後會自動離開。目前只連線，不會說話也不會收音 |
+| `/radio` | 所有人 | 回覆 Claude FM 直播連結（只給連結，不在語音頻道轉播） |
 | `/mood` | 管理員 | 查看心情值，只有自己看得到；其他人會收到只有自己看得到的拒絕訊息 |
 
 - `.env` 可以加上 `DISCORD_GUILD_ID=<伺服器 ID>`，讓指令註冊到該伺服器、馬上生效。沒有設定的話會註冊成全域指令。
+- 語音頻道需要 bot 在該頻道有「連線」權限。
 - **不要**在 Developer Portal 設定 Interactions Endpoint URL，不然插件的 Allow / Deny 按鈕會失效。

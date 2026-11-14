@@ -15,6 +15,7 @@
     "start:claude:resume": "powershell -ExecutionPolicy Bypass -File start.ps1 -BotName claude-ojousama -Resume"
   },
   "dependencies": {
+    "@discordjs/voice": "0.19.2",
     "discord.js": "^14.28.1"
   }
 }

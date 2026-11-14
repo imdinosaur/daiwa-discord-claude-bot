@@ -3,7 +3,7 @@ import { describe, expect, test } from "./helpers/expect.ts";
 import { EPHEMERAL_FLAG, runDeferred, truncate, UserFacingError } from "../lib/commands/defer.ts";
 import { formatGammaReply } from "../lib/commands/gamma_format.ts";
 import { sanitizeNote, memoryUserName } from "../lib/commands/remember.ts";
-import { parseEnabledCommands } from "../lib/commands/registry.ts";
+import { CLAUDE_FM_URL, findCommand, parseEnabledCommands } from "../lib/commands/registry.ts";
 import type { GammaSnapshot } from "../lib/snapshot.ts";
 
 function fakeInteraction() {
@@ -136,4 +136,11 @@ describe("parseEnabledCommands", () => {
   });
   test("rejects unknown names", () => assert.throws(() => parseEnabledCommands('{"commands":["nope"]}'), /nope/));
   test("rejects a malformed file", () => assert.throws(() => parseEnabledCommands('{"commands":"gamma"}')));
+});
+
+describe("/radio", () => {
+  test("replies with the Claude FM link", async () => {
+    const reply = await findCommand("radio")!.run({ username: "test", getString: () => null, voice: null });
+    assert.ok(reply.includes(CLAUDE_FM_URL));
+  });
 });

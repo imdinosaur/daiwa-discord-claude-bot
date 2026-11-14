@@ -6,7 +6,11 @@ import { UserFacingError } from "./defer.ts";
 import { formatGammaReply } from "./gamma_format.ts";
 import { memoryUserName, sanitizeNote } from "./remember.ts";
 import { runNodeScript } from "./run_script.ts";
+import { joinUserChannel, leaveVoice } from "./voice.ts";
+import type { GuildVoiceContext } from "./voice.ts";
 import type { GammaSnapshot } from "../snapshot.ts";
+
+const GUILD_CONTEXT = 0; // InteractionContextType.Guild：只能在伺服器裡使用
 
 const STRING_OPTION = 3; // ApplicationCommandOptionType.String
 const GAMMA_TIMEOUT_MS = 90_000;
@@ -16,6 +20,8 @@ const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 export interface CommandContext {
   username: string;
   getString(name: string): string | null;
+  /** 在伺服器裡下指令時才有；DM 中為 null */
+  voice: GuildVoiceContext | null;
 }
 
 export interface OptionSpec {
@@ -34,6 +40,8 @@ export interface CommandSpec {
   adminOnly: boolean;
   /** 回覆只有觸發者看得到 */
   ephemeral: boolean;
+  /** 只在伺服器裡註冊（DM 裡看不到） */
+  guildOnly?: boolean;
   run(ctx: CommandContext): Promise<string>;
 }
 
@@ -68,6 +76,25 @@ async function runMood(): Promise<string> {
   return runNodeScript("scripts/mood.js", ["--get"], QUICK_SCRIPT_TIMEOUT_MS);
 }
 
+// Anthropic 官方短網址，會轉到目前的 YouTube 直播；只給連結，不轉播音訊
+export const CLAUDE_FM_URL = "https://clau.de/radio";
+
+async function runRadio(): Promise<string> {
+  return `Claude FM（Anthropic 的 24 小時 lo-fi 直播）：${CLAUDE_FM_URL}`;
+}
+
+const GUILD_ONLY_REPLY = "這個指令只能在伺服器裡用。";
+
+async function runJoin(ctx: CommandContext): Promise<string> {
+  if (!ctx.voice) throw new UserFacingError(GUILD_ONLY_REPLY);
+  return joinUserChannel(ctx.voice);
+}
+
+async function runLeave(ctx: CommandContext): Promise<string> {
+  if (!ctx.voice) throw new UserFacingError(GUILD_ONLY_REPLY);
+  return leaveVoice(ctx.voice.guildId);
+}
+
 export const COMMANDS: readonly CommandSpec[] = [
   {
     name: "gamma",
@@ -94,6 +121,32 @@ export const COMMANDS: readonly CommandSpec[] = [
     ephemeral: true,
     run: runMood,
   },
+  {
+    name: "join",
+    description: "讓 bot 加入你目前所在的語音頻道",
+    options: [],
+    adminOnly: false,
+    ephemeral: false,
+    guildOnly: true,
+    run: runJoin,
+  },
+  {
+    name: "leave",
+    description: "讓 bot 離開語音頻道",
+    options: [],
+    adminOnly: false,
+    ephemeral: false,
+    guildOnly: true,
+    run: runLeave,
+  },
+  {
+    name: "radio",
+    description: "取得 Claude FM 直播連結",
+    options: [],
+    adminOnly: false,
+    ephemeral: false,
+    run: runRadio,
+  },
 ];
 
 export function findCommand(name: string): CommandSpec | undefined {
@@ -116,6 +169,7 @@ export function parseEnabledCommands(json: string): string[] {
 export function toRegistrationBody(names: readonly string[]): object[] {
   return names.map((name) => {
     const c = findCommand(name)!;
-    return { name: c.name, description: c.description, options: c.options };
+    const base = { name: c.name, description: c.description, options: c.options };
+    return c.guildOnly ? { ...base, contexts: [GUILD_CONTEXT] } : base;
   });
 }

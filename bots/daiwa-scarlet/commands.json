@@ -1,1 +1,1 @@
-{ "commands": ["remember", "mood"] }
+{ "commands": ["remember", "mood", "join", "leave", "radio"] }

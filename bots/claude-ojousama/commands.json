@@ -1,1 +1,1 @@
-{ "commands": ["gamma", "remember"] }
+{ "commands": ["gamma", "remember", "join", "leave", "radio"] }

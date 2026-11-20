@@ -7,7 +7,7 @@ node scripts/gamma_today.ts            # 最近一個交易日
 node scripts/gamma_today.ts 2026-11-13 # 指定日
 ```
 
-輸出是 JSON（stdout），價位都已換算成加權指數現貨點數；下載進度在 stderr。約需 10 秒，資料來自期交所 TXO 日資料與證交所加權指數。計算方法來自 `gamma-sentiment` 專案（`lib/gamma/`），不要自己重算或改數字。
+輸出是 JSON（stdout），價位都已換算成加權指數現貨點數；下載進度在 stderr。約需 10 秒，資料來自期交所 TXO 日資料、期交所三大法人選擇權買賣權分計、證交所加權指數與三大法人買賣金額。計算方法來自 `gamma-sentiment` 專案（`lib/gamma/`），不要自己重算或改數字。
 
 ## 欄位
 
@@ -23,6 +23,15 @@ node scripts/gamma_today.ts 2026-11-13 # 指定日
 | `h`, `sigma` | 3 日曆日預期波動（點數）、價平隱含波動率 |
 | `cone` | 1/3/5/7 日 ±1σ、±2σ 預期波動範圍 |
 | `settlingExpiries` | 即將結算的到期日（結算後 gamma 緩衝可能消失） |
+| `calibrated` | 法人校正版：改用期交所自營商淨未平倉推估造市商部位（`dealerCallNetOi`／`dealerPutNetOi` 口），重算的 `lightLabel`、`regime`、`flip`。資料未公布時為 `null` |
+| `institutions.options` | 期交所 TXO 三大法人未平倉淨額（口，正＝淨多） |
+| `institutions.spot` | 證交所現貨三大法人買賣超（億元，正＝買超）；資料未公布時整個 `institutions` 為 `null` |
+
+### 法人校正怎麼看
+
+- 主燈號（`light`）仍以預設模型為準，燈號門檻是依預設模型設計的。`calibrated` 是對照用。
+- 兩者的正負 gamma 一致時，結論較可信；不一致時要點出來，並說明以哪個為主。
+- 限制：法人資料只有全部 TXO 合計，沒有分履約價和到期日，校正版假設自營商部位按未平倉量平均分布。不要把校正版的 flip 講得比預設模型更精確。
 
 ## 兩種模式
 
@@ -39,9 +48,38 @@ node scripts/gamma_today.ts 2026-11-13 # 指定日
 收盤 43,675｜flip 41,834（距離 1.32h）
 震盪空間：42,833（賣權牆）～ 43,830（買權牆）
 明日 ±1σ：42,873 ～ 44,477
+法人校正：綠燈｜收盤處為正 gamma｜flip 無（自營商淨未平倉 買權 +7,959／賣權 +38 口）
+現貨三大法人（億元）：外資 -94.13｜投信 -87.49｜自營商 -340.84（避險 -290.16）｜合計 -522.46
+斐波那契（近 60 日下跌波段 49,969 → 35,739，反彈壓力）：23.6% 39,097｜38.2% 41,175｜50% 42,854｜61.8% 44,533｜78.6% 46,924
 （一句話重點：例如「收盤貼近買權牆，上方空間有限」）
-本報告為選擇權結構分析，不構成投資建議。
+-# 本報告為選擇權結構分析，不構成投資建議。
 ```
 
 - 數字照 JSON，不四捨五入成別的值、不推測 JSON 裡沒有的東西。
-- 最後一行的免責聲明一定要有。
+- 最後一行的免責聲明一定要有，用 Discord 小字格式 `-# `。
+- 自營商現貨買賣超 = 自行買賣 + 避險。`calibrated` 或 `institutions` 為 `null` 時省略該行，並在免責聲明前加一行 `-# 法人資料尚未公布`。
+- 盤前模式用的是前一交易日的法人資料，要寫明資料日期。
+- 盤後模式一定要附斐波那契回撤圖（見下方步驟），用 `reply` 的 `files` 跟文字放在同一則訊息；斐波那契那一行只放在盤後模式。畫圖失敗時照常發文字，並加一行 `-# 圖表產生失敗`。
+
+## 斐波那契回撤圖（盤後模式必做，其他時候被要求才做）
+
+```bash
+node scripts/gamma_today.ts 2026-11-20 > output/snap.json
+node scripts/fib_today.ts 2026-11-20 > output/fib.json   # 可加第二個參數改回看天數，預設 60 個交易日
+python scripts/gamma_chart.py output/snap.json output/fib.json output/gamma_fib.png
+```
+
+- 波段取回看期間內的最高點與最低點；高點較晚出現時是上漲波段（回撤＝回檔支撐），反之是下跌波段（回撤＝反彈壓力）。
+- 圖上的黃色色帶代表回撤價位與 gamma 價位相距 1% 以內。
+- 低點或高點就是資料日當天時，要註明波段尚未確認。
+
+## 加權指數均線乖離（被問到均線、乖離率時用）
+
+```bash
+node scripts/taiex_bias.ts --compare 2025-04          # 摘要 JSON；--ma 改均線期數、--since 改起始月、--date 改截止日
+python scripts/taiex_chart.py --mark 2025-04-09       # 產生 output/taiex_daily.png、output/taiex_weekly.png
+```
+
+- 週 K 由日資料彙整（ISO 週），`start` 是該週第一個交易日。
+- 已結束的月份快取在 `output/cache/`，第一次跑約 1 分鐘，之後幾秒。
+- 以上四支腳本都已加入自動允許，輸出一律寫在 `output/`，不要寫到專案外。

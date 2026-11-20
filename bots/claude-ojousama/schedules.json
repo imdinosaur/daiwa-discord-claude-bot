@@ -11,7 +11,7 @@
       "id": "gamma-postclose",
       "cron": "23 15 * * 1-5",
       "enabled": true,
-      "task": "盤後 gamma 報告：依「Gamma 報告」skill 的盤後模式，整理今天收盤後的台指選擇權 gamma 快照，發到「一般」頻道（chat_id 1484811045179752511）。"
+      "task": "盤後 gamma 報告：依「Gamma 報告」skill 的盤後模式，整理今天收盤後的台指選擇權 gamma 快照，加上三大法人買賣超與斐波那契回撤（文字一行＋附圖），發到「一般」頻道（chat_id 1484811045179752511）。"
     }
   ]
 }

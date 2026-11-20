@@ -8,3 +8,4 @@ config/channels.json
 .playwright-mcp/
 logs/
 memory/last_startup_*.txt
+output/

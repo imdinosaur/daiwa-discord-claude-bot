@@ -1,4 +1,4 @@
-import { evaluate } from "./evaluate.ts";
+import { evaluate, NAIVE_WEIGHTS, type GexWeights } from "./evaluate.ts";
 import { prepare } from "./prepare.ts";
 import type { DayResult, OptionRow, PricedRow } from "./types.ts";
 
@@ -21,7 +21,7 @@ function nextChange(today: readonly PricedRow[], tomorrow: readonly PricedRow[] 
   return f1 === undefined ? null : (f1 / f0 - 1) * 100;
 }
 
-export function analyze(rows: readonly OptionRow[]): DayResult[] {
+export function analyze(rows: readonly OptionRow[], w: GexWeights = NAIVE_WEIGHTS): DayResult[] {
   const priced = prepare(rows);
   const byDate = new Map<number, PricedRow[]>();
   for (const r of priced) {
@@ -32,7 +32,7 @@ export function analyze(rows: readonly OptionRow[]): DayResult[] {
   const dates = [...byDate.keys()].sort((a, b) => a - b);
   return dates.flatMap((d, i) => {
     const nd = i + 1 < dates.length ? dates[i + 1] : nextBusinessDay(d);
-    const res = evaluate(byDate.get(d)!, nd);
+    const res = evaluate(byDate.get(d)!, nd, w);
     if (!res) return [];
     return [{ ...res, nextChange: nextChange(byDate.get(d)!, byDate.get(dates[i + 1]), nd) }];
   });

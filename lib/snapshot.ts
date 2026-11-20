@@ -5,6 +5,8 @@ import { boxAround, toSpot } from "./gamma/levels.ts";
 import type { DayResult, FlipZone, Light } from "./gamma/types.ts";
 import { LIGHT_META, gammaRegime } from "./format.ts";
 import type { Bar } from "./market/twse.ts";
+import type { DealerCalibration } from "./gamma/calibrate.ts";
+import type { OptionInstitution, SpotInstitution } from "./market/institutions.ts";
 
 export const CONE_HORIZONS = [1, 3, 5, 7] as const; // 日曆日
 const SIGMAS = [1, 2] as const;
@@ -14,6 +16,33 @@ export interface ConeBand {
   k: number;
   lower: number;
   upper: number;
+}
+
+/** 依自營商淨未平倉校正後的結果（與預設模型並列，不取代燈號） */
+export interface CalibratedView {
+  dealerCallNetOi: number;
+  dealerPutNetOi: number;
+  totalCallOi: number;
+  totalPutOi: number;
+  wCall: number;
+  wPut: number;
+  light: Light;
+  lightLabel: string;
+  regime: { positive: boolean; label: string };
+  flip: number | null;
+  flip_dist: number | null;
+}
+
+export interface InstitutionsView {
+  /** 期交所 TXO 未平倉淨額（口） */
+  options: OptionInstitution[];
+  /** 證交所現貨買賣超（億元） */
+  spot: SpotInstitution[];
+}
+
+export interface SnapshotExtras {
+  calibrated?: { day: DayResult; cal: DealerCalibration } | null;
+  institutions?: InstitutionsView | null;
 }
 
 export interface GammaSnapshot {
@@ -42,13 +71,36 @@ export interface GammaSnapshot {
   putWall: number | null;
   box: { lower: number; upper: number; lowerKind: string; upperKind: string } | null;
   cone: ConeBand[];
+  calibrated: CalibratedView | null;
+  institutions: InstitutionsView | null;
 }
 
 const r0 = (x: number): number => Math.round(x);
 const r0n = (x: number | null): number | null => (x === null ? null : r0(x));
 const r2 = (x: number): number => Math.round(x * 100) / 100;
+const sig4 = (x: number): number => Number(x.toPrecision(4));
 
-export function snapshot(day: DayResult, bars: readonly Bar[]): GammaSnapshot {
+function calibratedView(
+  { day, cal }: { day: DayResult; cal: DealerCalibration },
+  k: number,
+): CalibratedView {
+  const regime = gammaRegime(day);
+  return {
+    dealerCallNetOi: cal.dealerCallNetOi,
+    dealerPutNetOi: cal.dealerPutNetOi,
+    totalCallOi: cal.totalCallOi,
+    totalPutOi: cal.totalPutOi,
+    wCall: sig4(cal.weights.C),
+    wPut: sig4(cal.weights.P),
+    light: day.light,
+    lightLabel: LIGHT_META[day.light].label,
+    regime: { positive: regime.positive, label: regime.label },
+    flip: day.flip === null ? null : r0(day.flip * k),
+    flip_dist: day.flip_dist === null ? null : r2(day.flip_dist),
+  };
+}
+
+export function snapshot(day: DayResult, bars: readonly Bar[], extras: SnapshotExtras = {}): GammaSnapshot {
   const bar = bars.find((b) => b.date === day.date);
   const close = bar?.close ?? day.F0;
   const k = close / day.F0;
@@ -86,5 +138,7 @@ export function snapshot(day: DayResult, bars: readonly Bar[]): GammaSnapshot {
         return { days, k: s, lower: r0(close * (1 - move)), upper: r0(close * (1 + move)) };
       })
     ),
+    calibrated: extras.calibrated ? calibratedView(extras.calibrated, k) : null,
+    institutions: extras.institutions ?? null,
   };
 }

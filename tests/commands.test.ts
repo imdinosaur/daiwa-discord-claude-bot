@@ -96,6 +96,8 @@ const snap: GammaSnapshot = {
     { days: 1, k: 1, lower: 42873, upper: 44477 },
     { days: 1, k: 2, lower: 42000, upper: 45000 },
   ],
+  calibrated: null,
+  institutions: null,
 };
 
 describe("formatGammaReply", () => {
@@ -108,7 +110,42 @@ describe("formatGammaReply", () => {
     assert.match(text, /震盪空間：42,833（賣權牆）～ 43,830（買權牆）/);
     assert.match(text, /±1σ：42,873 ～ 44,477/);
   });
-  test("ends with the disclaimer", () => assert.match(text, /不構成投資建議。$/));
+  test("ends with the disclaimer as Discord subtext", () => assert.match(text, /^-# 本報告為選擇權結構分析，不構成投資建議。$/m));
+  test("omits institutional lines when the data is missing", () => {
+    assert.ok(!text.includes("法人校正"));
+    assert.ok(!text.includes("現貨三大法人"));
+  });
+  test("adds calibrated and spot institution lines before the disclaimer", () => {
+    const full = formatGammaReply({
+      ...snap,
+      calibrated: {
+        dealerCallNetOi: 7959,
+        dealerPutNetOi: -38,
+        totalCallOi: 95013,
+        totalPutOi: 28549,
+        wCall: 0.08377,
+        wPut: -0.001331,
+        light: "green",
+        lightLabel: "綠燈",
+        regime: { positive: true, label: "收盤處為正 gamma" },
+        flip: null,
+        flip_dist: null,
+      },
+      institutions: {
+        options: [],
+        spot: [
+          { who: "自營商(自行買賣)", net: -50.68 },
+          { who: "自營商(避險)", net: -290.16 },
+          { who: "投信", net: -87.49 },
+          { who: "外資及陸資(不含外資自營商)", net: 94.13 },
+          { who: "外資自營商", net: 0 },
+          { who: "合計", net: -522.46 },
+        ],
+      },
+    });
+    assert.match(full, /法人校正：綠燈｜收盤處為正 gamma｜flip 無（自營商淨未平倉 買權 \+7,959／賣權 -38 口）/);
+    assert.match(full, /現貨三大法人（億元）：外資 \+94\.13｜投信 -87\.49｜自營商 -340\.84（避險 -290\.16）｜合計 -522\.46\n-# /);
+  });
   test("marks a forward price used in place of the close", () => {
     assert.match(formatGammaReply({ ...snap, priceSource: "F0" }), /遠期價/);
   });
